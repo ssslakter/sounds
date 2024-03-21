@@ -1,0 +1,9 @@
+project:
+  output-dir: _docs
+
+website:
+  title: "sounds"
+  site-url: "https://Ssslakter.github.io/sounds"
+  description: ""
+  repo-branch: main
+  repo-url: "https://github.com/Ssslakter/sounds"
