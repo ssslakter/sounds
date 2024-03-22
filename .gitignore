@@ -1,3 +1,4 @@
+*.wav
 _publish.yml
 _quarto.yml
 _proc/
