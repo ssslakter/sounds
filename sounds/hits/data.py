@@ -2,12 +2,14 @@
 
 # %% auto 0
 __all__ = ['load_stream', 'split_into_frames', 'split_audio', 'generate_with_stones', 'merge_items', 'TfmDataset',
-           'plot_spectrogram']
+           'random_split_dataset', 'dataloaders', 'plot_spectrogram']
 
 # %% ../../nbs/hits_01_data_prep.ipynb 3
-import requests
-import librosa, matplotlib.pyplot as plt, numpy as np
+from types import SimpleNamespace
+import requests, torch
+import librosa, matplotlib.pyplot as plt, numpy as np, fastcore.all as fc
 from fastcore.all import noop, L
+from torch.utils.data import Subset, DataLoader
 
 # %% ../../nbs/hits_01_data_prep.ipynb 5
 def load_stream(file = '../data/stream.mp3'):
@@ -55,6 +57,22 @@ class TfmDataset:
         return x,y
 
 # %% ../../nbs/hits_01_data_prep.ipynb 23
+def random_split_dataset(ds, split_frac=0.8):
+    '''shuffle and split dataset'''
+    split_size = int(len(ds) * split_frac)
+    indices = torch.randperm(len(ds))
+    train_indices = indices[:split_size]
+    val_indices = indices[split_size:]
+    train_subset = Subset(ds, train_indices)
+    val_subset = Subset(ds, val_indices)
+    
+    return train_subset, val_subset
+
+@fc.delegates(DataLoader.__init__)
+def dataloaders(train_ds, test_ds, **kwargs):
+    return SimpleNamespace(train=DataLoader(train_ds,**kwargs), test=DataLoader(test_ds,**kwargs))
+
+# %% ../../nbs/hits_01_data_prep.ipynb 24
 def plot_spectrogram(specgram, title=None, ylabel="freq_bin", ax=None):
     if ax is None:
         _, ax = plt.subplots(1, 1)
