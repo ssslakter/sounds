@@ -70,7 +70,7 @@ def random_split_dataset(ds, split_frac=0.8):
 
 @fc.delegates(DataLoader.__init__)
 def dataloaders(train_ds, test_ds, **kwargs):
-    return SimpleNamespace(train=DataLoader(train_ds,**kwargs), test=DataLoader(test_ds,**kwargs))
+    return SimpleNamespace(train=DataLoader(train_ds,**kwargs), valid=DataLoader(test_ds,**kwargs))
 
 # %% ../../nbs/hits_01_data_prep.ipynb 24
 def plot_spectrogram(specgram, title=None, ylabel="freq_bin", ax=None):
