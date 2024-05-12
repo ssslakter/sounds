@@ -4,9 +4,17 @@
 __all__ = ['def_device', 'run_cbs', 'with_cbs', 'to_device', 'to_cpu', 'Learner', 'Callback', 'MetricsCB', 'DeviceCB',
            'ProgressCB', 'conv1d', 'ConvModel', 'AudioModel']
 
-# %% ../../nbs/hits_02_model.ipynb 10
+# %% ../../nbs/hits_02_model.ipynb 2
+from typing import Mapping
+import torch, torch.nn as nn, torch.optim as optim
+import torch.nn.functional as F
+import math
+import fastcore.all as fc
+from fastprogress import master_bar, progress_bar
+
+# %% ../../nbs/hits_02_model.ipynb 11
 def run_cbs(cbs, method_nm, learn=None):
-    for cb in sorted(cbs, key=attrgetter('order')):
+    for cb in sorted(cbs, key=fc.attrgetter('order')):
         method = getattr(cb, method_nm, None)
         if method is not None: method(learn)
 
@@ -36,7 +44,7 @@ def to_cpu(x):
     res = x.detach().cpu()
     return res.float() if res.dtype==torch.float16 else res
 
-# %% ../../nbs/hits_02_model.ipynb 11
+# %% ../../nbs/hits_02_model.ipynb 12
 class Learner:
     def __init__(self, dls, model: nn.Module, loss_func=F.mse_loss, lr=0.1, opt_func=optim.SGD, cbs=None):
         self.model = model
@@ -93,6 +101,10 @@ class Learner:
     def callback(self, method_nm): run_cbs(self.cbs, method_nm, self)
 
 # %% ../../nbs/hits_02_model.ipynb 13
+from copy import copy
+from torcheval.metrics import MulticlassAccuracy,Mean
+
+# %% ../../nbs/hits_02_model.ipynb 14
 class Callback(): order = 0
 
 class MetricsCB(Callback):
@@ -153,7 +165,7 @@ class ProgressCB(Callback):
                 self.mbar.update_graph([[fc.L.range(self.losses), self.losses],[fc.L.range(learn.epoch+1).map(lambda x: (x+1)*len(learn.dls.train)), self.val_losses]])
 
 
-# %% ../../nbs/hits_02_model.ipynb 15
+# %% ../../nbs/hits_02_model.ipynb 16
 def conv1d(n_in, n_out, k_size=3, stride=2, act=nn.ReLU(), p=None, norm=False):
     res = [nn.Conv1d(n_in, n_out, k_size, stride, padding=2, bias=False)]
     if p is not None: res.append(nn.Dropout(p))
@@ -161,7 +173,7 @@ def conv1d(n_in, n_out, k_size=3, stride=2, act=nn.ReLU(), p=None, norm=False):
     if act is not None: res.append(act)
     return nn.Sequential(*res)
 
-# %% ../../nbs/hits_02_model.ipynb 16
+# %% ../../nbs/hits_02_model.ipynb 17
 class ConvModel(nn.Module):
     # Feature extractor based on wav2vec http://arxiv.org/abs/1904.05862
     
@@ -201,7 +213,7 @@ class ConvModel(nn.Module):
         if self.log_compression: x = x.abs().log1p()
         return x
 
-# %% ../../nbs/hits_02_model.ipynb 17
+# %% ../../nbs/hits_02_model.ipynb 18
 class AudioModel(nn.Module):
     def __init__(self):
         super().__init__()
