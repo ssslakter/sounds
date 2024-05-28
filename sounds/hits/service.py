@@ -32,7 +32,7 @@ class Config:
     buffer_stride: int = 15_000
     verbose: bool = False
 
-# %% ../../nbs/hits_04_service.ipynb 4
+# %% ../../nbs/hits_04_service.ipynb 6
 def apply_transforms(y, cfg: Config):
     # should be the same as `x_tfms`
     n_fft = 400
@@ -90,7 +90,13 @@ def stream_loop(stream_url, model, out_fldr='./preds', cfg = Config()):
         try:
             for block in r.iter_content(4096):
                 total_bytes += len(block)
-                buff.extend(block)
+                
+                # this might overfill the buffer, so we copy and add it at the end
+                b2=[]
+                if len(buff) + len(block) > cfg.buffer_size:
+                    b1, b2 = block[:cfg.buffer_size - len(buff)], block[cfg.buffer_size - len(buff):]
+                    buff.extend(b1)
+                else: buff.extend(block)
                 
                 # when buffer is filled with audio extract, write to file and predict
                 if len(buff) == cfg.buffer_size:
@@ -98,8 +104,10 @@ def stream_loop(stream_url, model, out_fldr='./preds', cfg = Config()):
                     with open(tmp, 'wb') as f:
                         f.write(bytes(buff))
                         # clear buffer for next iteration
-                        for _ in range(cfg.buffer_stride): buff.popleft() 
-                    l.info("Reading audio from {}")
+                        for _ in range(cfg.buffer_stride): buff.popleft()
+                        # add the remaining bytes
+                        buff.extend(b2)
+                    l.info(f"Reading audio from {tmp}")
                     audio, _ = librosa.load(tmp, sr=cfg.sr)
                     l.info(f"Read audio of length {len(audio)}. Predicting")
                     res = predict(audio, model, cfg)
@@ -108,6 +116,8 @@ def stream_loop(stream_url, model, out_fldr='./preds', cfg = Config()):
                         fname = out_fldr/f'{idx}.wav'
                         l.debug(f"Writing hit to {fname}")
                         sf.write(fname, r, cfg.sr)
+                        
+                
         except requests.exceptions.StreamConsumedError:
             l.info("Stream consumed, retrying")
             continue
@@ -117,7 +127,7 @@ def stream_loop(stream_url, model, out_fldr='./preds', cfg = Config()):
         finally:
             l.info(f"Total bytes read: {total_bytes}")
 
-# %% ../../nbs/hits_04_service.ipynb 5
+# %% ../../nbs/hits_04_service.ipynb 7
 DEF_FMT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 def init_logger(name: str = None, level=l.INFO, format: str = None, handlers: list = None, logs_dir='./logs'):
     '''Initializes a logger, adds handlers and sets the format. If logs_dir is provided, a file handler is added to the logger.'''
@@ -133,7 +143,7 @@ def init_logger(name: str = None, level=l.INFO, format: str = None, handlers: li
     log.handlers.clear()
     for h in handlers: h.setFormatter(log_fmt); log.addHandler(h)
 
-# %% ../../nbs/hits_04_service.ipynb 6
+# %% ../../nbs/hits_04_service.ipynb 8
 @call_parse
 def main(url:str= 'http://localhost:8000/stream', model_path: str = "./model.onnx"):
     init_logger()
